@@ -1,10 +1,41 @@
 import socket
 from concurrent.futures import ThreadPoolExecutor
 
+COMMON_SERVICES = {
+    21: "FTP",
+    22: "SSH",
+    25: "SMTP",
+    53: "DNS",
+    80: "HTTP",
+    110: "POP3",
+    143: "IMAP",
+    443: "HTTPS",
+    3306: "MySQL",
+    3389: "RDP"
+}
+
 target = input("Enter target IP or hostname: ")
 
-start_port = int(input("Enter start port: "))
-end_port = int(input("Enter end port: "))
+try:
+    socket.gethostbyname(target)
+except socket.gaierror:
+    print("Invalid hostname or IP address.")
+    exit()
+
+try:
+    start_port = int(input("Enter start port: "))
+    end_port = int(input("Enter end port: "))
+except ValueError:
+    print("Ports must be numbers.")
+    exit()
+
+if start_port < 1 or end_port > 65535:
+    print("Ports must be between 1 and 65535.")
+    exit()
+
+if start_port > end_port:
+    print("Start port must be less than or equal to end port.")
+    exit()
 
 print(f"\nScanning target: {target}")
 print(f"Port range: {start_port}-{end_port}\n")
@@ -17,7 +48,8 @@ def scan_port(port):
     result = scanner.connect_ex((target, port))
 
     if result == 0:
-        print(f"Port {port} is open")
+        service = COMMON_SERVICES.get(port, "Unknown Service")
+        print(f"Port {port} is open ({service})")
 
     scanner.close()
 
