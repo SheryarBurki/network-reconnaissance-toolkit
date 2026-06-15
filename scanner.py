@@ -11,7 +11,8 @@ COMMON_SERVICES = {
     143: "IMAP",
     443: "HTTPS",
     3306: "MySQL",
-    3389: "RDP"
+    3389: "RDP",
+    8080: "HTTP-Alt"
 }
 
 target = input("Enter target IP or hostname: ")
@@ -40,6 +41,28 @@ if start_port > end_port:
 print(f"\nScanning target: {target}")
 print(f"Port range: {start_port}-{end_port}\n")
 
+def grab_banner(target, port):
+    try:
+        banner_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        banner_socket.settimeout(2)
+        banner_socket.connect((target, port))
+
+        if port in [80, 8080]:
+            banner_socket.send(
+                b"HEAD / HTTP/1.1\r\nHost: "
+                + target.encode()
+                + b"\r\n\r\n"
+            )
+
+        banner = banner_socket.recv(1024).decode(errors="ignore").strip()
+
+        banner_socket.close()
+
+        if banner:
+            return banner
+
+    except:
+        return None
 
 def scan_port(port):
     scanner = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -51,8 +74,12 @@ def scan_port(port):
         service = COMMON_SERVICES.get(port, "Unknown Service")
         print(f"Port {port} is open ({service})")
 
-    scanner.close()
+        banner = grab_banner(target, port)
 
+        if banner:
+            print(f"  Banner: {banner}")
+
+    scanner.close()
 
 with ThreadPoolExecutor(max_workers=100) as executor:
     executor.map(scan_port, range(start_port, end_port + 1))
