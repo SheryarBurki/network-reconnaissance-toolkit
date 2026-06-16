@@ -1,5 +1,6 @@
 import socket
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 
 COMMON_SERVICES = {
     21: "FTP",
@@ -14,6 +15,10 @@ COMMON_SERVICES = {
     3389: "RDP",
     8080: "HTTP-Alt"
 }
+
+results = []
+
+scan_time = datetime.now()
 
 target = input("Enter target IP or hostname: ")
 
@@ -72,16 +77,51 @@ def scan_port(port):
 
     if result == 0:
         service = COMMON_SERVICES.get(port, "Unknown Service")
-        print(f"Port {port} is open ({service})")
 
         banner = grab_banner(target, port)
 
-        if banner:
-            print(f"  Banner: {banner}")
+        results.append({
+            "port": port,
+            "service": service,
+            "banner": banner
+        })
 
     scanner.close()
 
 with ThreadPoolExecutor(max_workers=100) as executor:
     executor.map(scan_port, range(start_port, end_port + 1))
+
+print("\nScan Results:\n")
+
+for result in sorted(results, key=lambda x: x["port"]):
+    print(f"Port {result['port']} is open ({result['service']})")
+
+    if result["banner"]:
+        print(f"  Banner: {result['banner']}")
+
+with open("scan_results.txt", "w") as report:
+
+    report.write("=====================================\n")
+    report.write("NETWORK RECONNAISSANCE REPORT\n")
+    report.write("=====================================\n\n")
+
+    report.write(f"Target: {target}\n")
+    report.write(f"Scan Time: {scan_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+    report.write(f"Port Range: {start_port}-{end_port}\n\n")
+
+    for result in sorted(results, key=lambda x: x["port"]):
+
+        report.write(
+            f"Port {result['port']} Open ({result['service']})\n"
+        )
+
+        if result["banner"]:
+            report.write(
+                f"Banner: {result['banner']}\n"
+            )
+
+        report.write("\n")
+
+print("\nReport saved to scan_results.txt")
 
 print("\nScan complete.")
