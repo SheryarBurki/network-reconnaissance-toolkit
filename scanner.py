@@ -1,3 +1,4 @@
+import logging
 import socket
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -16,35 +17,6 @@ COMMON_SERVICES = {
     8080: "HTTP-Alt"
 }
 
-results = []
-
-scan_time = datetime.now()
-
-target = input("Enter target IP or hostname: ")
-
-try:
-    socket.gethostbyname(target)
-except socket.gaierror:
-    print("Invalid hostname or IP address.")
-    exit()
-
-try:
-    start_port = int(input("Enter start port: "))
-    end_port = int(input("Enter end port: "))
-except ValueError:
-    print("Ports must be numbers.")
-    exit()
-
-if start_port < 1 or end_port > 65535:
-    print("Ports must be between 1 and 65535.")
-    exit()
-
-if start_port > end_port:
-    print("Start port must be less than or equal to end port.")
-    exit()
-
-print(f"\nScanning target: {target}")
-print(f"Port range: {start_port}-{end_port}\n")
 
 def grab_banner(target, port):
     try:
@@ -59,69 +31,203 @@ def grab_banner(target, port):
                 + b"\r\n\r\n"
             )
 
-        banner = banner_socket.recv(1024).decode(errors="ignore").strip()
+        banner = banner_socket.recv(1024).decode(
+            errors="ignore"
+        ).strip()
 
         banner_socket.close()
 
         if banner:
             return banner
 
-    except:
+    except Exception:
         return None
 
-def scan_port(port):
-    scanner = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    scanner.settimeout(1)
 
-    result = scanner.connect_ex((target, port))
+def port_scan():
+    results = []
+    scan_time = datetime.now()
 
-    if result == 0:
-        service = COMMON_SERVICES.get(port, "Unknown Service")
+    target = input(
+        "Enter target IP or hostname: "
+    )
 
-        banner = grab_banner(target, port)
+    try:
+        socket.gethostbyname(target)
+    except socket.gaierror:
+        print("Invalid hostname or IP address.")
+        return
 
-        results.append({
-            "port": port,
-            "service": service,
-            "banner": banner
-        })
+    try:
+        start_port = int(
+            input("Enter start port: ")
+        )
 
-    scanner.close()
+        end_port = int(
+            input("Enter end port: ")
+        )
 
-with ThreadPoolExecutor(max_workers=100) as executor:
-    executor.map(scan_port, range(start_port, end_port + 1))
+    except ValueError:
+        print("Ports must be numbers.")
+        return
 
-print("\nScan Results:\n")
+    if start_port < 1 or end_port > 65535:
+        print(
+            "Ports must be between 1 and 65535."
+        )
+        return
 
-for result in sorted(results, key=lambda x: x["port"]):
-    print(f"Port {result['port']} is open ({result['service']})")
+    if start_port > end_port:
+        print(
+            "Start port must be less than "
+            "or equal to end port."
+        )
+        return
 
-    if result["banner"]:
-        print(f"  Banner: {result['banner']}")
+    logging.info(
+        f"Port scan started - target: {target}, "
+        f"port range: {start_port}-{end_port}"
+    )
 
-with open("scan_results.txt", "w") as report:
+    print(f"\nScanning target: {target}")
+    print(
+        f"Port range: {start_port}-{end_port}\n"
+    )
 
-    report.write("=====================================\n")
-    report.write("NETWORK RECONNAISSANCE REPORT\n")
-    report.write("=====================================\n\n")
+    def scan_port(port):
+        scanner = socket.socket(
+            socket.AF_INET,
+            socket.SOCK_STREAM
+        )
 
-    report.write(f"Target: {target}\n")
-    report.write(f"Scan Time: {scan_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-    report.write(f"Port Range: {start_port}-{end_port}\n\n")
+        scanner.settimeout(1)
 
-    for result in sorted(results, key=lambda x: x["port"]):
+        result = scanner.connect_ex(
+            (target, port)
+        )
 
-        report.write(
-            f"Port {result['port']} Open ({result['service']})\n"
+        if result == 0:
+            service = COMMON_SERVICES.get(
+                port,
+                "Unknown Service"
+            )
+
+            banner = grab_banner(
+                target,
+                port
+            )
+
+            results.append({
+                "port": port,
+                "service": service,
+                "banner": banner
+            })
+
+            logging.info(
+                f"Open port found - "
+                f"{target}:{port} "
+                f"({service})"
+            )
+
+        scanner.close()
+
+    with ThreadPoolExecutor(
+        max_workers=100
+    ) as executor:
+
+        executor.map(
+            scan_port,
+            range(
+                start_port,
+                end_port + 1
+            )
+        )
+
+    print("\nScan Results:\n")
+
+    for result in sorted(
+        results,
+        key=lambda x: x["port"]
+    ):
+
+        print(
+            f"Port {result['port']} "
+            f"is open "
+            f"({result['service']})"
         )
 
         if result["banner"]:
-            report.write(
-                f"Banner: {result['banner']}\n"
+            print(
+                f"  Banner: "
+                f"{result['banner']}"
             )
 
-        report.write("\n")
+    with open(
+        "scan_results.txt",
+        "w"
+    ) as report:
 
-print("\nReport saved to scan_results.txt")
+        report.write(
+            "=====================================\n"
+        )
 
-print("\nScan complete.")
+        report.write(
+            "NETWORK RECONNAISSANCE REPORT\n"
+        )
+
+        report.write(
+            "=====================================\n\n"
+        )
+
+        report.write(
+            f"Target: {target}\n"
+        )
+
+        report.write(
+            f"Scan Time: "
+            f"{scan_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+        )
+
+        report.write(
+            f"Port Range: "
+            f"{start_port}-{end_port}\n\n"
+        )
+
+        for result in sorted(
+            results,
+            key=lambda x: x["port"]
+        ):
+
+            report.write(
+                f"Port {result['port']} "
+                f"Open "
+                f"({result['service']})\n"
+            )
+
+            if result["banner"]:
+                report.write(
+                    f"Banner: "
+                    f"{result['banner']}\n"
+                )
+
+            report.write("\n")
+
+    logging.info(
+        "Report saved to scan_results.txt"
+    )
+
+    logging.info(
+        f"Port scan completed - "
+        f"target: {target}, "
+        f"{len(results)} open ports found"
+    )
+
+    print(
+        "\nReport saved to scan_results.txt"
+    )
+
+    print("\nScan complete.")
+
+
+if __name__ == "__main__":
+    port_scan()
