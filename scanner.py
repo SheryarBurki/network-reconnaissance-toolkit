@@ -1,3 +1,4 @@
+import json
 import logging
 import socket
 from concurrent.futures import ThreadPoolExecutor
@@ -212,8 +213,30 @@ def port_scan():
 
             report.write("\n")
 
+    json_report = {
+        "target": target,
+        "scan_time": scan_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "port_range": {
+            "start": start_port,
+            "end": end_port
+        },
+        "open_ports_found": len(results),
+        "results": sorted(results, key=lambda x: x["port"])
+    }
+
+    with open("scan_results.json", "w") as json_file:
+        json.dump(
+            json_report,
+            json_file,
+            indent=4
+        )
+    
     logging.info(
         "Report saved to scan_results.txt"
+    )
+
+    logging.info(
+        "JSON report saved to scan_results.json"
     )
 
     logging.info(
@@ -224,6 +247,10 @@ def port_scan():
 
     print(
         "\nReport saved to scan_results.txt"
+    )
+
+    print(
+        "JSON report saved to scan_results.json"
     )
 
     print("\nScan complete.")
