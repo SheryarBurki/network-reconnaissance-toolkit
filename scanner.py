@@ -52,22 +52,34 @@ def parse_banner(banner):
             "version": None
         }
 
-    openssh_match = re.search(
-        r"OpenSSH[_/](\S+)",
-        banner
-    )
+    patterns = [
+        (r"OpenSSH[_/](\S+)", "OpenSSH"),
+        (r"Apache/(\S+)", "Apache"),
+        (r"nginx/(\S+)", "nginx"),
+        (r"Microsoft-IIS/(\S+)", "Microsoft IIS"),
+        (r"SimpleHTTP/(\S+)", "SimpleHTTP"),
+        (r"MySQL\s+(\S+)", "MySQL"),
+        (r"vsftpd\s+(\S+)", "vsftpd"),
+        (r"ProFTPD\s+(\S+)", "ProFTPD")
+    ]
 
-    if openssh_match:
-        return {
-            "product": "OpenSSH",
-            "version": openssh_match.group(1)
-        }
+    for pattern, product in patterns:
+        match = re.search(
+            pattern,
+            banner,
+            re.IGNORECASE
+        )
+
+        if match:
+            return {
+                "product": product,
+                "version": match.group(1)
+            }
 
     return {
         "product": None,
         "version": None
     }
-
 
 def port_scan():
     results = []
