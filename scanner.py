@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import socket
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -43,6 +44,29 @@ def grab_banner(target, port):
 
     except Exception:
         return None
+    
+def parse_banner(banner):
+    if not banner:
+        return {
+            "product": None,
+            "version": None
+        }
+
+    openssh_match = re.search(
+        r"OpenSSH[_/](\S+)",
+        banner
+    )
+
+    if openssh_match:
+        return {
+            "product": "OpenSSH",
+            "version": openssh_match.group(1)
+        }
+
+    return {
+        "product": None,
+        "version": None
+    }
 
 
 def port_scan():
@@ -118,11 +142,15 @@ def port_scan():
                 port
             )
 
+            parsed_banner = parse_banner(banner)
+
             results.append({
                 "port": port,
                 "service": service,
+                "product": parsed_banner["product"],
+                "version": parsed_banner["version"],
                 "banner": banner
-            })
+                })
 
             logging.info(
                 f"Open port found - "
